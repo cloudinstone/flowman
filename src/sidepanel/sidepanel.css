@@ -1,0 +1,471 @@
+/*
+ * Material Design 3 styling, hand-written.
+ * Color roles follow Google's GM3 baseline (light + dark), typography follows
+ * the M3 type scale, interactive states use M3 state-layer opacities.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Light scheme */
+  --md-sys-color-primary: #0b57d0;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #d3e3fd;
+  --md-sys-color-on-primary-container: #041e49;
+  --md-sys-color-secondary-container: #c2e7ff;
+  --md-sys-color-on-secondary-container: #001d35;
+  --md-sys-color-surface: #ffffff;
+  --md-sys-color-surface-container-low: #f8fafd;
+  --md-sys-color-surface-container: #f0f4f9;
+  --md-sys-color-surface-container-high: #e9eef6;
+  --md-sys-color-on-surface: #1f1f1f;
+  --md-sys-color-on-surface-variant: #444746;
+  --md-sys-color-outline: #747775;
+  --md-sys-color-outline-variant: #c4c7c5;
+  --md-sys-color-error: #b3261e;
+  --md-sys-color-success: #146c2e;
+  --md-sys-color-warning: #8a5300;
+
+  /* Shape */
+  --md-sys-shape-corner-full: 9999px;
+  --md-sys-shape-corner-large: 16px;
+  --md-sys-shape-corner-medium: 12px;
+
+  /* State layers */
+  --md-sys-state-hover: 0.08;
+  --md-sys-state-focus: 0.1;
+  --md-sys-state-pressed: 0.1;
+
+  --md-ref-typeface: 'Google Sans Text', 'Google Sans', Roboto, system-ui, -apple-system, sans-serif;
+  --md-ref-typeface-brand: 'Google Sans', 'Google Sans Text', Roboto, system-ui, -apple-system, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --md-sys-color-primary: #a8c7fa;
+    --md-sys-color-on-primary: #062e6f;
+    --md-sys-color-primary-container: #0842a0;
+    --md-sys-color-on-primary-container: #d3e3fd;
+    --md-sys-color-secondary-container: #004a77;
+    --md-sys-color-on-secondary-container: #c2e7ff;
+    --md-sys-color-surface: #131314;
+    --md-sys-color-surface-container-low: #1b1b1b;
+    --md-sys-color-surface-container: #1e1f20;
+    --md-sys-color-surface-container-high: #282a2c;
+    --md-sys-color-on-surface: #e3e3e3;
+    --md-sys-color-on-surface-variant: #c4c7c5;
+    --md-sys-color-outline: #8e918f;
+    --md-sys-color-outline-variant: #444746;
+    --md-sys-color-error: #f2b8b5;
+    --md-sys-color-success: #6dd58c;
+    --md-sys-color-warning: #fdd663;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Type scale (M3)
+ * ------------------------------------------------------------------------- */
+
+.title-large {
+  font: 400 22px/28px var(--md-ref-typeface-brand);
+  margin: 0;
+}
+.title-medium {
+  font: 500 16px/24px var(--md-ref-typeface);
+  letter-spacing: 0.15px;
+  margin: 0;
+}
+.label-large {
+  font: 500 14px/20px var(--md-ref-typeface);
+  letter-spacing: 0.1px;
+  margin: 0;
+}
+.body-large {
+  font: 400 16px/24px var(--md-ref-typeface);
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+.body-medium {
+  font: 400 14px/20px var(--md-ref-typeface);
+  letter-spacing: 0.25px;
+  margin: 0;
+}
+.body-small {
+  font: 400 12px/16px var(--md-ref-typeface);
+  letter-spacing: 0.4px;
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Layout
+ * ------------------------------------------------------------------------- */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 280px;
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-ref-typeface);
+  -webkit-font-smoothing: antialiased;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  flex: none;
+}
+
+.top-app-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 64px;
+  padding: 0 16px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--md-sys-color-surface);
+}
+
+.brand-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--md-sys-color-primary);
+}
+
+main {
+  padding: 0 12px 24px;
+}
+
+.empty-state {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-sys-color-surface-container);
+}
+
+.section-label {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.supporting {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.selection-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.text-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.message {
+  min-height: 20px;
+  padding: 12px 4px 4px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.footnote {
+  padding: 16px 4px 0;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* ---------------------------------------------------------------------------
+ * Buttons (M3 common buttons) with state layers
+ * ------------------------------------------------------------------------- */
+
+button {
+  font: 500 14px/20px var(--md-ref-typeface);
+  letter-spacing: 0.1px;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 120ms linear;
+  pointer-events: none;
+}
+
+button:hover:not(:disabled)::before {
+  opacity: var(--md-sys-state-hover);
+}
+
+button:focus-visible::before {
+  opacity: var(--md-sys-state-focus);
+}
+
+button:active:not(:disabled)::before {
+  opacity: var(--md-sys-state-pressed);
+}
+
+button:focus-visible {
+  outline: 3px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+.btn-filled,
+.btn-outlined,
+.btn-tonal {
+  height: 40px;
+  padding: 0 24px 0 16px;
+  border-radius: var(--md-sys-shape-corner-full);
+}
+
+.btn-filled {
+  flex: 1 1 auto;
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+}
+
+.btn-tonal {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.btn-outlined {
+  flex: 1 1 auto;
+  border: 1px solid var(--md-sys-color-outline);
+  color: var(--md-sys-color-primary);
+}
+
+.btn-text {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--md-sys-shape-corner-full);
+  color: var(--md-sys-color-primary);
+}
+
+.btn-filled:disabled,
+.btn-tonal:disabled {
+  background: color-mix(in srgb, var(--md-sys-color-on-surface) 12%, transparent);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+}
+
+.btn-outlined:disabled {
+  border-color: color-mix(in srgb, var(--md-sys-color-on-surface) 12%, transparent);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+}
+
+.btn-text:disabled {
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+ * Segmented button (M3)
+ * ------------------------------------------------------------------------- */
+
+.segmented {
+  display: flex;
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
+  overflow: hidden;
+}
+
+.segmented button {
+  flex: 1 1 0;
+  height: 40px;
+  padding: 0 12px;
+  color: var(--md-sys-color-on-surface);
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--md-sys-color-outline);
+}
+
+.segmented button .check {
+  display: none;
+}
+
+.segmented button[aria-checked='true'] {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.segmented button[aria-checked='true'] .check {
+  display: block;
+}
+
+.segmented button:disabled {
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+}
+
+.segmented button:focus-visible {
+  outline-offset: -3px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Linear progress indicator (M3)
+ * ------------------------------------------------------------------------- */
+
+.progress {
+  display: grid;
+  gap: 8px;
+}
+
+.linear-progress .track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--md-sys-color-secondary-container);
+  overflow: hidden;
+}
+
+.linear-progress .indicator {
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  background: var(--md-sys-color-primary);
+  transition: width 300ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* ---------------------------------------------------------------------------
+ * List (M3 two-line list items)
+ * ------------------------------------------------------------------------- */
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 64px;
+  padding: 8px 16px 8px 12px;
+  border-radius: var(--md-sys-shape-corner-medium);
+}
+
+.list-item.running {
+  background: var(--md-sys-color-surface-container-low);
+}
+
+.list-item .leading {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.list-item .leading svg {
+  width: 24px;
+  height: 24px;
+}
+
+.list-item.done .leading {
+  color: var(--md-sys-color-success);
+}
+
+.list-item.failed .leading {
+  color: var(--md-sys-color-error);
+}
+
+.list-item.running .leading {
+  color: var(--md-sys-color-primary);
+}
+
+.list-item .content {
+  min-width: 0;
+  flex: 1;
+}
+
+.list-item .headline {
+  font: 400 16px/24px var(--md-ref-typeface);
+  letter-spacing: 0.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-item .supporting-text {
+  font: 400 14px/20px var(--md-ref-typeface);
+  letter-spacing: 0.25px;
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+
+.list-item.failed .supporting-text {
+  color: var(--md-sys-color-error);
+}
+
+.list-item .trailing {
+  font: 500 11px/16px var(--md-ref-typeface);
+  letter-spacing: 0.5px;
+  color: var(--md-sys-color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Circular progress indicator (M3, indeterminate) */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 3px solid var(--md-sys-color-secondary-container);
+  border-top-color: var(--md-sys-color-primary);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 3s;
+  }
+  .linear-progress .indicator,
+  button::before {
+    transition: none;
+  }
+}

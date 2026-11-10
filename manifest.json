@@ -1,15 +1,23 @@
 {
   "manifest_version": 3,
   "name": "Flow Batch Downloader",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Queue Google Flow videos and download them one by one at 720p / 1080p (upscaled) without babysitting each upscale.",
-  "permissions": ["downloads"],
+  "permissions": ["downloads", "sidePanel"],
   "host_permissions": ["https://flow.google.com/*"],
   "background": {
     "service_worker": "src/background.js"
   },
   "action": {
-    "default_title": "Toggle Flow Batch Downloader panel"
+    "default_title": "Open Flow Batch Downloader"
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/sidepanel.html"
   },
   "content_scripts": [
     {

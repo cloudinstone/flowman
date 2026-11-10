@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Flow Batch Downloader</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <header class="top-app-bar">
+      <svg class="brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+      </svg>
+      <h1 class="title-large">Batch download</h1>
+    </header>
+
+    <!-- Shown when the active tab is not a Flow project. -->
+    <section class="empty-state" id="empty" hidden>
+      <p class="body-large" id="empty-text">Open a project in Google Flow to start.</p>
+    </section>
+
+    <main id="main" hidden>
+      <section class="card">
+        <h2 class="label-large section-label" id="res-label">Resolution</h2>
+        <div class="segmented" role="radiogroup" aria-labelledby="res-label" id="resolution">
+          <button type="button" role="radio" data-value="720p">
+            <svg class="check" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>720p
+          </button>
+          <button type="button" role="radio" data-value="1080p">
+            <svg class="check" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>1080p
+          </button>
+          <button type="button" role="radio" data-value="4K">
+            <svg class="check" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>4K
+          </button>
+        </div>
+        <p class="body-small supporting" id="res-hint"></p>
+
+        <div class="selection-row">
+          <p class="body-medium" id="selection-count">No videos selected</p>
+          <div class="text-buttons">
+            <button type="button" class="btn-text" id="select-all">Select all</button>
+            <button type="button" class="btn-text" id="clear">Clear</button>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="btn-filled" id="start">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+            <span id="start-label">Start download</span>
+          </button>
+          <button type="button" class="btn-outlined" id="stop" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z" /></svg>
+            Stop
+          </button>
+          <button type="button" class="btn-tonal" id="retry" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+            </svg>
+            Retry failed
+          </button>
+        </div>
+
+        <div class="progress" id="progress" hidden>
+          <div class="linear-progress" role="progressbar" aria-labelledby="progress-text" id="progress-bar">
+            <div class="track"><div class="indicator" id="progress-indicator"></div></div>
+          </div>
+          <p class="body-small supporting" id="progress-text"></p>
+        </div>
+      </section>
+
+      <p class="body-medium message" id="message" role="status" aria-live="polite"></p>
+
+      <ul class="list" id="list" aria-label="Download queue"></ul>
+
+      <p class="body-small footnote">
+        Keep this panel and the Flow tab open while downloading. Tiles in Flow are outlined by status.
+      </p>
+    </main>
+
+    <script src="sidepanel.js" type="module"></script>
+  </body>
+</html>

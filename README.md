@@ -1,25 +1,27 @@
 # Flow Batch Downloader
 
-Chrome extension (MV3) that batch-downloads videos from a Google Flow project at 720p or 1080p (upscaled), one after another, without clicking through each upscale by hand.
+Chrome Extension (Manifest V3) that batch-downloads videos from a Google Flow project at 720p or 1080p (upscaled), one after another, via Chrome's native Side Panel with Material Design 3 UI.
 
-## How it works
+## How It Works
 
-It drives Flow's own UI: tile **More options → Download → resolution**. Flow performs the upscale and starts the browser download itself; the extension waits for that download to complete (`chrome.downloads`) and then moves to the next video. The queue is strictly serial because Flow asks users not to run multiple upscale jobs at once.
+1. **Native Chrome Side Panel**: The control center runs in Chrome's native side panel with GM3 styling, avoiding overlay clutter on the Flow workspace.
+2. **Serial Queue Automation**: Automatically opens the video menu (`More options` -> `Download` -> `1080p Upscaled` / `720p`), triggers generation, and uses `chrome.downloads` directly in the side panel to await completion before proceeding to the next video.
+3. **Flow Safety**: Respects Flow's recommendation against running multiple simultaneous upscales by keeping the pipeline strictly serial.
 
-No Flow APIs are called directly and no credentials are read.
+## Installation
 
-## Install
+1. Open `chrome://extensions` in Google Chrome.
+2. Enable **Developer mode** in the top right.
+3. Click **Load unpacked** and choose the `~/projects/flow-batch-downloader` directory.
+4. Pin the **Flow Batch Downloader** extension to your toolbar.
 
-1. `chrome://extensions` → enable **Developer mode**.
-2. **Load unpacked** → select this folder.
-3. Pin the extension.
+## Usage
 
-## Use
-
-1. Open a Flow project (`https://flow.google.com/project/...`). The **Videos** view keeps the grid focused.
-2. Click the extension icon to open the panel. Checkboxes appear on downloadable video tiles.
-3. Tick videos, or click **Select all videos**.
-4. Pick a resolution and press **Start**. Leave the tab open.
+1. Navigate to your Google Flow project (e.g. `https://flow.google.com/project/...`).
+2. Click the extension toolbar icon. Chrome's Side Panel will open.
+3. Select your desired resolution (**1080p** recommended for upscaled exports).
+4. Use **Select all** or tick checkboxes directly on video tiles in the Flow grid.
+5. Click **Download X videos** / **Start download**. Leave the tab and panel open while processing.
 
 Tile outline colors: blue = queued, yellow = in progress, green = done, red = failed. **Retry failed** re-queues failed items.
 

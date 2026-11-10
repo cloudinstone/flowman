@@ -1,4 +1,4 @@
-/* Styles injected into Flow's page. Only active while the panel is open. */
+/* Styles injected into Flow's page. Only active while the side panel is connected. */
 
 body.fbd-active flow-grid-tile-container {
   position: relative;
@@ -9,11 +9,16 @@ body.fbd-active flow-grid-tile-container {
   top: 12px;
   left: 48px;
   z-index: 50;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   margin: 0;
   cursor: pointer;
-  accent-color: #8ab4f8;
+  accent-color: #a8c7fa;
+}
+
+.fbd-check:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 body.fbd-active flow-grid-tile-container[data-fbd-status]::after {
@@ -27,17 +32,17 @@ body.fbd-active flow-grid-tile-container[data-fbd-status]::after {
 }
 
 body.fbd-active flow-grid-tile-container[data-fbd-status='queued']::after {
-  border-color: #8ab4f8;
+  border-color: #a8c7fa;
 }
 
 body.fbd-active flow-grid-tile-container[data-fbd-status='running']::after {
-  border-color: #fbbc04;
+  border-color: #fdd663;
 }
 
 body.fbd-active flow-grid-tile-container[data-fbd-status='done']::after {
-  border-color: #34a853;
+  border-color: #6dd58c;
 }
 
 body.fbd-active flow-grid-tile-container[data-fbd-status='failed']::after {
-  border-color: #ea4335;
+  border-color: #f2b8b5;
 }
