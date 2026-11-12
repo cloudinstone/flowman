@@ -1,10 +1,11 @@
 // Flow Batch Downloader — content script (executor).
 //
-// Owns everything that touches Flow's DOM: scanning the grid, rendering
-// selection checkboxes on tiles, and clicking through
-// "More options -> Download -> <resolution>" for one video at a time.
-// The side panel owns the queue and decides what to trigger; the two talk
-// over a long-lived port so the page knows when the panel is open.
+// Coordinates between the Side Panel and the MAIN-world bridge (`page-bridge.js`):
+// - Renders selection checkboxes on video tiles and mirrors queue status outlines.
+// - Scans all videos and triggers downloads/upscales directly via Flow's
+//   internal Angular services (`page-bridge.js`) without scrolling the page,
+//   hovering tiles, or opening DOM context menus.
+// - Falls back to DOM menu automation only if Flow's internal bridge is unavailable.
 
 (() => {
   'use strict';
@@ -13,11 +14,46 @@
   window.__fbdLoaded = true;
 
   const PORT_NAME = 'fbd';
+  const BRIDGE_REQ_EVENT = 'fbd:bridge-req';
+  const BRIDGE_RES_EVENT = 'fbd:bridge-res';
+  const BRIDGE_TIMEOUT_MS = 30000;
   const MENU_TIMEOUT_MS = 5000;
   const RENDER_WAIT_MS = 500;
   const FAILURE_SNACKBAR_RE = /fail|error|unable|couldn.?t|could not|try again|went wrong/i;
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // ---------------------------------------------------------------------------
+  // MAIN-world bridge RPC
+  // ---------------------------------------------------------------------------
+
+  let bridgeSeq = 0;
+  const bridgePending = new Map();
+
+  window.addEventListener(BRIDGE_RES_EVENT, (event) => {
+    const detail = event.detail;
+    if (!detail || detail.id == null) return;
+    const entry = bridgePending.get(detail.id);
+    if (!entry) return;
+    bridgePending.delete(detail.id);
+    clearTimeout(entry.timer);
+    if (detail.error) entry.reject(new Error(detail.error));
+    else entry.resolve(detail.result);
+  });
+
+  function callBridge(type, payload = {}) {
+    return new Promise((resolve, reject) => {
+      const id = ++bridgeSeq;
+      const timer = setTimeout(() => {
+        bridgePending.delete(id);
+        reject(new Error(`Page bridge timed out (${type})`));
+      }, BRIDGE_TIMEOUT_MS);
+      bridgePending.set(id, { resolve, reject, timer });
+      window.dispatchEvent(
+        new CustomEvent(BRIDGE_REQ_EVENT, { detail: { id, type, payload } }),
+      );
+    });
+  }
 
   // ---------------------------------------------------------------------------
   // Flow DOM helpers
@@ -27,7 +63,8 @@
 
   const allTiles = () => [...document.querySelectorAll('flow-grid-tile-container')];
 
-  const tileTitle = (tile) => tile.getAttribute('aria-label') || '(untitled)';
+  const tileTitle = (tile) =>
+    tile.dataset.fbdTitle || tile.getAttribute('aria-label') || '(untitled)';
 
   // Failed generations are video tiles too, but have no context menu.
   const isDownloadableVideo = (tile) =>
@@ -35,23 +72,29 @@
 
   const videoTiles = () => allTiles().filter(isDownloadableVideo);
 
-  // Virtual scrolling recycles tile elements and Flow exposes no media id in
-  // the DOM, so a tile is identified by its absolute position in the grid.
+  // Prefer the stable `data-fbd-media-id` stamped by `page-bridge.js`;
+  // fall back to virtual-scroll grid position only if unavailable.
   function tileKey(tile, scroller) {
+    if (tile.dataset.fbdMediaId) return tile.dataset.fbdMediaId;
+    if (!scroller) return '';
     const r = tile.getBoundingClientRect();
     const s = scroller.getBoundingClientRect();
     return `${Math.round(r.top - s.top + scroller.scrollTop)}:${Math.round(r.left - s.left)}`;
   }
 
+  const isPositionKey = (key) => /^\d+:\d+$/.test(key);
   const parseKey = (key) => key.split(':').map(Number);
 
   const compareKeys = (a, b) => {
+    if (!isPositionKey(a) || !isPositionKey(b)) return 0;
     const [at, al] = parseKey(a);
     const [bt, bl] = parseKey(b);
     return at - bt || al - bl;
   };
 
   const keysMatch = (a, b) => {
+    if (a === b) return true;
+    if (!isPositionKey(a) || !isPositionKey(b)) return false;
     const [at, al] = parseKey(a);
     const [bt, bl] = parseKey(b);
     return Math.abs(at - bt) <= 4 && Math.abs(al - bl) <= 4;
@@ -68,7 +111,7 @@
     while (Date.now() < deadline) {
       const v = fn();
       if (v) return v;
-      await sleep(100);
+      await sleep(50);
     }
     throw new Error(`Timed out waiting for ${what}`);
   }
@@ -78,8 +121,16 @@
     document.querySelectorAll('.cdk-overlay-backdrop').forEach((b) => b.click());
   }
 
-  // Scroll through the whole grid and collect every downloadable video tile.
+  // Primary scan: read all videos in memory via `page-bridge.js` without scrolling.
+  // Fallback: scroll through the grid if the bridge fails.
   async function scanAllVideos() {
+    try {
+      const videos = await callBridge('scan');
+      if (Array.isArray(videos) && videos.length > 0) return videos;
+    } catch {
+      // Fall through to DOM scan if bridge is unavailable.
+    }
+
     const scroller = getScroller();
     if (!scroller) throw new Error('Media grid not found. Open a project in Flow first.');
     const original = scroller.scrollTop;
@@ -87,6 +138,7 @@
     scroller.scrollTop = 0;
     await sleep(RENDER_WAIT_MS);
     for (;;) {
+      await callBridge('sync-dom').catch(() => {});
       for (const tile of videoTiles()) found.set(tileKey(tile, scroller), tileTitle(tile));
       if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2) break;
       const prev = scroller.scrollTop;
@@ -101,15 +153,17 @@
   }
 
   async function scrollToKey(scroller, key) {
+    if (!isPositionKey(key)) {
+      await callBridge('sync-dom').catch(() => {});
+      return videoTiles().find((t) => t.dataset.fbdMediaId === key);
+    }
     const [top] = parseKey(key);
     scroller.scrollTop = Math.max(0, top - 120);
     await sleep(RENDER_WAIT_MS);
     return videoTiles().find((t) => keysMatch(tileKey(t, scroller), key));
   }
 
-  // Bring the tile for `item` into the DOM and return it with its current key.
-  // Falls back to a unique title match if the layout shifted.
-  async function locateTile(item) {
+  async function locateTileFallback(item) {
     const scroller = getScroller();
     if (!scroller) throw new Error('Media grid not found');
     const atPos = await scrollToKey(scroller, item.key);
@@ -124,10 +178,26 @@
     return { tile, key: matches[0].key };
   }
 
-  // Click through Flow's menu. Resolves once the resolution was clicked; the
-  // side panel then waits for the browser download.
+  // Primary trigger: invoke Flow's internal service directly via `page-bridge.js`
+  // (zero hover, zero menu popup, zero scrolling).
+  // Fallback: click through Flow's menu if internal bridge fails.
   async function trigger(item, resolution) {
-    const { tile, key } = await locateTile(item);
+    try {
+      return await callBridge('trigger', {
+        key: item.key,
+        title: item.title,
+        resolution,
+      });
+    } catch (bridgeErr) {
+      // If the bridge reported a plan/availability error, surface it directly
+      // rather than falling back to clicking the disabled menu item.
+      const msg = String(bridgeErr?.message || bridgeErr);
+      if (/isn't available|not available|plan|upgrade|seconds/i.test(msg)) {
+        throw bridgeErr;
+      }
+    }
+
+    const { tile, key } = await locateTileFallback(item);
     tile.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     tile.querySelector('button[aria-haspopup="menu"]').click();
 
@@ -223,7 +293,10 @@
   // In-grid checkboxes
   // ---------------------------------------------------------------------------
 
-  function syncTiles() {
+  async function syncTiles() {
+    if (port) {
+      await callBridge('sync-dom').catch(() => {});
+    }
     const scroller = getScroller();
     for (const tile of allTiles()) {
       let cb = tile.querySelector(':scope > .fbd-check');
@@ -282,7 +355,13 @@
     true,
   );
   window.addEventListener('resize', () => {
-    // Positions are layout-dependent; let the panel decide what to do.
-    port?.postMessage({ type: 'layout-changed' });
+    if (!port) return;
+    // Only notify layout-changed if tiles are still using position keys instead of media IDs.
+    const anyPosKey = [...view.selected].some(isPositionKey);
+    if (anyPosKey) {
+      port.postMessage({ type: 'layout-changed' });
+    } else {
+      scheduleSync();
+    }
   });
 })();

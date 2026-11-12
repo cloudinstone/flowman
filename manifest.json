@@ -25,6 +25,12 @@
       "js": ["src/content.js"],
       "css": ["src/content.css"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://flow.google.com/*"],
+      "js": ["src/page-bridge.js"],
+      "world": "MAIN",
+      "run_at": "document_idle"
     }
   ]
 }

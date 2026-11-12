@@ -316,7 +316,10 @@ async function runQueue() {
 }
 
 function buildQueueFromSelection() {
-  const keys = [...state.selected.keys()].sort(compareKeys);
+  const keys = [...state.selected.keys()];
+  if (keys.every((k) => /^\d+:\d+$/.test(k))) {
+    keys.sort(compareKeys);
+  }
   const previous = new Map(state.items.map((i) => [i.key, i]));
   state.items = keys.map((key) => {
     const prev = previous.get(key);
