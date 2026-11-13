@@ -96,12 +96,17 @@
 
   function getTileThumb(tile) {
     const raw = tile?.Db?.Yb;
-    if (typeof raw !== 'string' || !raw) return '';
+    if (typeof raw !== 'string' || !raw) return { thumb: '', thumbType: '' };
     const normalized = raw.replace(
       'https://lh3.googleusercontent.com/asb/',
       'https://flow.google.com/asb/',
     );
-    return normalized.includes('=') ? normalized : `${normalized}=s160-rw`;
+    if (tile.type === 'VIDEO') {
+      const url = normalized.includes('=') ? normalized : `${normalized}=mm,22,15`;
+      return { thumb: url, thumbType: 'video' };
+    }
+    const url = normalized.includes('=') ? normalized : `${normalized}=s160-rw`;
+    return { thumb: url, thumbType: 'image' };
   }
 
   // Stamp `data-fbd-media-id` and `data-fbd-title` onto rendered DOM tiles so
@@ -147,10 +152,12 @@
       const key = item.primaryMediaId;
       if (seen.has(key)) continue;
       seen.add(key);
+      const { thumb, thumbType } = getTileThumb(item);
       videos.push({
         key,
         title: getTileTitle(item),
-        thumb: getTileThumb(item),
+        thumb,
+        thumbType,
       });
     }
     return videos;

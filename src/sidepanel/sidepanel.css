@@ -416,6 +416,7 @@ button:disabled {
   object-fit: cover;
   flex: none;
   background: var(--md-sys-color-surface-container-high);
+  pointer-events: none;
 }
 
 .list-item .leading {

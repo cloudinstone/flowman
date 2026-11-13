@@ -338,6 +338,7 @@ function buildQueueFromSelection() {
       key,
       title: state.selected.get(key) || meta?.title || '(untitled)',
       thumb: meta?.thumb || prev?.thumb || '',
+      thumbType: meta?.thumbType || prev?.thumbType || '',
       status: 'queued',
       detail: '',
     };
@@ -457,14 +458,38 @@ function toggleSelection(key, title) {
   render();
 }
 
-function createThumbEl(src) {
+const thumbObserver = new IntersectionObserver(
+  (entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const target = entry.target;
+      const lazySrc = target.dataset.src;
+      if (lazySrc && !target.src) {
+        target.src = lazySrc;
+      }
+      thumbObserver.unobserve(target);
+    }
+  },
+  { rootMargin: '120px' },
+);
+
+function createThumbEl(src, thumbType) {
   if (!src) return null;
+  if (thumbType === 'video' || src.includes('=mm')) {
+    const video = document.createElement('video');
+    video.className = 'thumb';
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'metadata';
+    video.dataset.src = `${src}#t=0.1`;
+    thumbObserver.observe(video);
+    return video;
+  }
   const img = document.createElement('img');
   img.className = 'thumb';
   img.src = src;
   img.alt = '';
   img.loading = 'lazy';
-  img.addEventListener('error', () => img.remove());
   return img;
 }
 
@@ -479,7 +504,7 @@ function renderList() {
         leading.className = 'leading';
         leading.innerHTML = ICONS[item.status] || '';
 
-        const thumb = createThumbEl(item.thumb);
+        const thumb = createThumbEl(item.thumb, item.thumbType);
 
         const content = document.createElement('div');
         content.className = 'content';
@@ -530,7 +555,7 @@ function renderList() {
 
       li.addEventListener('click', () => toggleSelection(entry.key, entry.title));
 
-      const thumb = createThumbEl(entry.thumb || prev?.thumb);
+      const thumb = createThumbEl(entry.thumb || prev?.thumb, entry.thumbType || prev?.thumbType);
 
       const content = document.createElement('div');
       content.className = 'content';
