@@ -1,37 +1,41 @@
 # Flowman - Google Flow Batch Downloader
 
-Chrome Extension (Manifest V3) that batch-downloads **videos** (`720p`, `1080p`, `4K`) and **images** (`1K`, `2K`, `4K`) from a Google Flow project, one after another, via Chrome's native Side Panel with Material Design 3 UI.
+A lightweight Chrome Extension (Manifest V3) for Google Flow, focused on **batch downloading 1080p / 4K upscaled videos** one by one without manual babysitting. Also supports `720p` videos and `1K / 2K / 4K` images.
 
-## How It Works
+[中文说明](#中文说明)
 
-1. **Native Chrome Side Panel**: Browse, filter, and select project videos or images with live thumbnails directly in Chrome's side panel.
-2. **Silent Internal Triggering**: Invokes Flow's internal download and upscaling pipeline directly without opening hover menus or scrolling your viewport (with menu automation kept as a fallback).
-3. **Serial Queue Automation**: Uses `chrome.downloads` to await each file's completion before starting the next item, respecting Flow's recommendation against running multiple simultaneous upscales.
+## Features
 
-## Installation
+- **1080p / 4K Upscaled Video Queue**: Triggers Flow's upscaling and waits for each download to finish before starting the next, avoiding concurrent upscale failures.
+- **Zero-Disruption Background Trigger**: Calls Flow's internal download pipeline directly—no hover menus popping up and no forced page scrolling.
+- **Native Side Panel**: Browse thumbnails, select items (`Option`/`Alt + Click` on tiles also works), track progress, and retry failed downloads.
 
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/cloudinstone/flowman.git
-   ```
-2. Open `chrome://extensions` in Google Chrome.
-3. Enable **Developer mode** in the top right.
-4. Click **Load unpacked** and select the `flowman` directory.
-5. Pin **Flowman** to your toolbar.
+## Install & Use
 
-## Usage
+1. Clone this repo (`git clone https://github.com/cloudinstone/flowman.git`).
+2. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and select the `flowman` folder.
+3. Open a Google Flow project (`https://flow.google.com/project/...`) and click the **Flowman** toolbar icon to open the Side Panel.
+4. Pick **Videos** (`1080p` / `4K` / `720p`) or **Images** (`1K` / `2K` / `4K`), select items, and click **Start download**.
 
-1. Open a Google Flow project (`https://flow.google.com/project/...`).
-2. Click the extension toolbar icon to open Chrome's Side Panel.
-3. Choose **Videos** or **Images**, then pick your target resolution (`1080p` / `720p` / `4K` for videos, `1K` / `2K` / `4K` for images).
-4. Select items in the Side Panel list (or hold `Option` / `Alt` and click tiles directly on the Flow page).
-5. Click **Start download** / **Download X items**. Keep the tab and panel open while processing.
+> Tip: Turn off Chrome's *"Ask where to save each file before downloading"* so batch downloads save automatically.
 
-Tile outline colors on Flow: blue = selected / queued, yellow = in progress, green = done, red = failed. **Retry failed** re-queues failed items.
+---
 
-## Notes
+## 中文说明
 
-- Turn off Chrome's *"Ask where to save each file before downloading"*, otherwise every file opens a save dialog.
-- Don't start other downloads during a run; the first download that starts after a trigger is attributed to the current item.
-- Items are tracked by Flow's internal `primaryMediaId` (falling back to grid position only if unavailable).
-- Relies on Flow's Angular frontend internals and DOM (`flow-grid-tile-container`, `flow-video-tile`, `flow-image-tile`). A Flow redesign may require selector or bridge updates.
+一个轻量的 Google Flow Chrome 扩展（Manifest V3），主打 **1080p / 4K 超分（Upscaled）视频的串行批量下载**——自动排队触发超分并等待每个文件下载完成，无需守在页面逐个点击；同时支持 `720p` 原画视频与 `1K / 2K / 4K` 图片批量下载。
+
+### 主要特性
+
+- **1080p / 4K 超分队列**：严格串行触发并等待下载完成，避免同时发起多个超分任务导致失败。
+- **静默触发不打扰**：直接调用 Flow 内部下载服务，不弹出 hover 菜单，也不抢占页面滚动。
+- **原生侧边栏管理**：支持缩略图列表勾选（也支持在 Flow 页面按住 `Option`/`Alt + 点击` 卡片选中）、实时进度与失败重试。
+
+### 安装与使用
+
+1. 克隆仓库：`git clone https://github.com/cloudinstone/flowman.git`
+2. 打开 `chrome://extensions`，开启右上角 **开发者模式**，点击 **加载已解压的扩展程序**，选择 `flowman` 目录。
+3. 打开任意 Google Flow 项目页面（`https://flow.google.com/project/...`），点击工具栏 **Flowman** 图标打开侧边栏。
+4. 选择 **Videos**（`1080p` / `4K` / `720p`）或 **Images**（`1K` / `2K` / `4K`），勾选需要下载的条目并点击 **Start download**。
+
+> 提示：建议在 Chrome 设置中关闭「下载前询问每个文件的保存位置」，避免批量下载时频繁弹出保存窗口。
