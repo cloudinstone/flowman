@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Flow Batch Downloader",
-  "version": "0.2.0",
-  "description": "Queue Google Flow videos and download them one by one at 720p / 1080p (upscaled) without babysitting each upscale.",
+  "name": "Flowman - Google Flow Batch Downloader",
+  "version": "0.3.0",
+  "description": "Batch-download videos (720p / 1080p / 4K) and images (1K / 2K / 4K) from Google Flow serially in the background.",
   "permissions": ["downloads", "sidePanel"],
   "host_permissions": ["https://flow.google.com/*"],
   "background": {
     "service_worker": "src/background.js"
   },
   "action": {
-    "default_title": "Open Flow Batch Downloader"
+    "default_title": "Open Flowman"
   },
   "icons": {
     "16": "icons/icon-16.png",
