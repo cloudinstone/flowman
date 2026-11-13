@@ -671,8 +671,8 @@ function render() {
     btn.dataset.value = opt.value;
     btn.setAttribute('aria-checked', String(opt.value === currentRes));
     btn.disabled = state.running;
-    const textNode = [...btn.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
-    if (textNode) textNode.textContent = opt.label;
+    const labelEl = btn.querySelector('.res-label');
+    if (labelEl) labelEl.textContent = opt.label;
     else btn.append(opt.label);
   });
   el.resHint.textContent = resOpts.find((o) => o.value === currentRes)?.hint || '';
