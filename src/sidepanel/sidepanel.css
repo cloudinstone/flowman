@@ -377,14 +377,45 @@ button:disabled {
 .list-item {
   display: flex;
   align-items: center;
-  gap: 16px;
-  min-height: 64px;
-  padding: 8px 16px 8px 12px;
+  gap: 12px;
+  min-height: 60px;
+  padding: 8px 12px;
   border-radius: var(--md-sys-shape-corner-medium);
+  transition: background-color 120ms linear;
+}
+
+.list-item.selectable {
+  cursor: pointer;
+}
+
+.list-item.selectable:hover {
+  background: var(--md-sys-color-surface-container-low);
 }
 
 .list-item.running {
   background: var(--md-sys-color-surface-container-low);
+}
+
+.list-item .item-check {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: none;
+  cursor: pointer;
+  accent-color: var(--md-sys-color-primary);
+}
+
+.list-item .item-check:disabled {
+  cursor: default;
+}
+
+.list-item .thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex: none;
+  background: var(--md-sys-color-surface-container-high);
 }
 
 .list-item .leading {

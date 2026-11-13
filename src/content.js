@@ -290,7 +290,7 @@
   }).observe(document.body, { childList: true, subtree: true });
 
   // ---------------------------------------------------------------------------
-  // In-grid checkboxes
+  // In-grid status outlines & Alt/Option+Click selection
   // ---------------------------------------------------------------------------
 
   async function syncTiles() {
@@ -299,39 +299,51 @@
     }
     const scroller = getScroller();
     for (const tile of allTiles()) {
-      let cb = tile.querySelector(':scope > .fbd-check');
+      // Clean up any legacy checkbox from earlier versions.
+      tile.querySelector(':scope > .fbd-check')?.remove();
+
       if (!port || !scroller || !isDownloadableVideo(tile)) {
-        cb?.remove();
+        delete tile.dataset.fbdSelected;
         delete tile.dataset.fbdStatus;
         continue;
       }
-      if (!cb) {
-        cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.className = 'fbd-check';
-        cb.title = 'Select for batch download';
-        for (const evt of ['click', 'mousedown', 'pointerdown', 'mouseup', 'pointerup', 'dblclick']) {
-          cb.addEventListener(evt, (e) => e.stopPropagation());
-        }
-        cb.addEventListener('change', () => {
-          const s = getScroller();
-          if (!s || !port) return;
-          port.postMessage({
-            type: 'toggle',
-            key: tileKey(tile, s),
-            title: tileTitle(tile),
-            checked: cb.checked,
-          });
-        });
-        tile.appendChild(cb);
-      }
       const key = tileKey(tile, scroller);
-      cb.checked = view.selected.has(key);
-      cb.disabled = view.locked;
+      if (view.selected.has(key)) tile.dataset.fbdSelected = 'true';
+      else delete tile.dataset.fbdSelected;
+
       const status = view.statuses.get(key);
       if (status) tile.dataset.fbdStatus = status;
       else delete tile.dataset.fbdStatus;
     }
+  }
+
+  // Support Alt/Option + Click on any video tile to toggle selection without
+  // placing a permanent checkbox overlay over narrow 9:16 tiles.
+  for (const evtName of ['pointerdown', 'mousedown', 'click']) {
+    document.addEventListener(
+      evtName,
+      (e) => {
+        if (!port || view.locked || !e.altKey) return;
+        const tile = e.target?.closest?.('flow-grid-tile-container');
+        if (!tile || !isDownloadableVideo(tile)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        if (evtName !== 'click') return;
+
+        const scroller = getScroller();
+        if (!scroller) return;
+        const key = tileKey(tile, scroller);
+        if (!key) return;
+        port.postMessage({
+          type: 'toggle',
+          key,
+          title: tileTitle(tile),
+          checked: !view.selected.has(key),
+        });
+      },
+      true,
+    );
   }
 
   let syncScheduled = false;

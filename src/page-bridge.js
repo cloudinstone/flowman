@@ -94,6 +94,16 @@
     return (tile?.displayName || tile?.Db?.prompt || '').trim() || '(untitled)';
   }
 
+  function getTileThumb(tile) {
+    const raw = tile?.Db?.Yb;
+    if (typeof raw !== 'string' || !raw) return '';
+    const normalized = raw.replace(
+      'https://lh3.googleusercontent.com/asb/',
+      'https://flow.google.com/asb/',
+    );
+    return normalized.includes('=') ? normalized : `${normalized}=s160-rw`;
+  }
+
   // Stamp `data-fbd-media-id` and `data-fbd-title` onto rendered DOM tiles so
   // the isolated-world content script can identify them without depending on
   // scroll coordinates.
@@ -140,6 +150,7 @@
       videos.push({
         key,
         title: getTileTitle(item),
+        thumb: getTileThumb(item),
       });
     }
     return videos;
