@@ -79,10 +79,10 @@
     return null;
   }
 
-  function isDownloadableVideoData(tile) {
+  function isDownloadableMediaData(tile) {
     return (
       tile &&
-      tile.type === 'VIDEO' &&
+      (tile.type === 'VIDEO' || tile.type === 'IMAGE') &&
       !tile.wb &&
       typeof tile.primaryMediaId === 'string' &&
       tile.primaryMediaId.length > 0 &&
@@ -109,93 +109,139 @@
     return { thumb: url, thumbType: 'image' };
   }
 
-  // Stamp `data-fbd-media-id` and `data-fbd-title` onto rendered DOM tiles so
-  // the isolated-world content script can identify them without depending on
-  // scroll coordinates.
+  // Stamp `data-fbd-media-id`, `data-fbd-title`, and `data-fbd-media-type`
+  // onto rendered DOM tiles so the isolated-world content script can identify
+  // them without depending on scroll coordinates.
   function syncDomTileAttributes() {
     const tiles = document.querySelectorAll('flow-grid-tile-container');
     let stamped = 0;
     for (const tileEl of tiles) {
-      if (!tileEl.querySelector('flow-video-tile')) {
+      if (!tileEl.querySelector('flow-video-tile, flow-image-tile')) {
         delete tileEl.dataset.fbdMediaId;
         delete tileEl.dataset.fbdTitle;
+        delete tileEl.dataset.fbdMediaType;
         continue;
       }
       const res = resolveFromTileElement(tileEl);
       const data = res?.tileData;
-      if (data && isDownloadableVideoData(data)) {
+      if (data && isDownloadableMediaData(data)) {
         tileEl.dataset.fbdMediaId = data.primaryMediaId;
         tileEl.dataset.fbdTitle = getTileTitle(data);
+        tileEl.dataset.fbdMediaType = data.type;
         stamped++;
       } else {
         delete tileEl.dataset.fbdMediaId;
         delete tileEl.dataset.fbdTitle;
+        delete tileEl.dataset.fbdMediaType;
       }
     }
     return { stamped };
   }
 
-  // Return all downloadable videos in the current project view directly from
-  // Angular's in-memory state (`pageComp.OA()`), in grid order, without
+  // Return all downloadable videos & images in the current project view directly
+  // from Angular's in-memory state (`pageComp.OA()`), in grid order, without
   // scrolling the page.
-  function scanVideos() {
+  function scanMedia() {
     syncDomTileAttributes();
     const pageComp = getPageComponent();
     if (!pageComp) {
       throw new Error('Media grid not ready. Make sure a project is open in Flow.');
     }
     const allItems = pageComp.OA?.() || [];
-    const videos = [];
+    const media = [];
     const seen = new Set();
     for (const item of allItems) {
-      if (!isDownloadableVideoData(item)) continue;
+      if (!isDownloadableMediaData(item)) continue;
       const key = item.primaryMediaId;
       if (seen.has(key)) continue;
       seen.add(key);
       const { thumb, thumbType } = getTileThumb(item);
-      videos.push({
+      media.push({
         key,
         title: getTileTitle(item),
+        mediaType: item.type,
         thumb,
         thumbType,
       });
     }
-    return videos;
+    return media;
   }
 
-  function findVideoData(pageComp, mediaId, title) {
+  function findMediaData(pageComp, mediaId, title, mediaType) {
     const allItems = [
       ...(pageComp.OA?.() || []),
       ...(pageComp.ua?.() || []),
     ];
-    let match = allItems.find((t) => isDownloadableVideoData(t) && t.primaryMediaId === mediaId);
+    let match = allItems.find(
+      (t) => isDownloadableMediaData(t) && t.primaryMediaId === mediaId,
+    );
     if (!match && title) {
       const byTitle = allItems.filter(
-        (t) => isDownloadableVideoData(t) && getTileTitle(t) === title,
+        (t) =>
+          isDownloadableMediaData(t) &&
+          (!mediaType || t.type === mediaType) &&
+          getTileTitle(t) === title,
       );
       if (byTitle.length === 1) match = byTitle[0];
     }
     return match || null;
   }
 
-  // Trigger Flow's internal video download / upscale pipeline directly via
-  // `ipService.Eu(...)`, bypassing all hover overlays and menus.
-  async function triggerVideoDownload({ key, title, resolution }) {
+  // Trigger Flow's internal download / upscale pipeline directly via
+  // `ipService.Eu(...)` (video) or `ipService.Xx(...)` (image), bypassing all
+  // hover overlays and menus.
+  async function triggerMediaDownload({ key, title, mediaType, resolution }) {
     const _ = getNs();
     const pageComp = getPageComponent();
     if (!_ || !pageComp || !pageComp.Ya) {
       throw new Error('Flow internal download service unavailable');
     }
     const ipService = pageComp.Ya;
-    const tile = findVideoData(pageComp, key, title);
+    const tile = findMediaData(pageComp, key, title, mediaType);
     if (!tile) {
-      throw new Error('Video not found in project state');
+      throw new Error('Media item not found in project state');
+    }
+
+    const isUserUploaded =
+      typeof pageComp.o4 === 'function' ? !!pageComp.o4(tile) : false;
+
+    if (tile.type === 'IMAGE') {
+      const isUpsampleSupported =
+        !isUserUploaded &&
+        typeof ipService.qg === 'function' &&
+        !!ipService.qg({ wd: tile.Db?.wd, nba: tile.Db?.Tb });
+
+      if (typeof _.uec === 'function') {
+        const options = _.uec(ipService, isUpsampleSupported);
+        const chosenOption = options.find((opt) => opt.resolution === resolution);
+        if (!chosenOption) {
+          throw new Error(`${resolution} option is not available for this image`);
+        }
+        if (!chosenOption.Yc) {
+          throw new Error(`${resolution} isn't available for this image on your plan`);
+        }
+      } else if (!['1K', '2K', '4K'].includes(resolution)) {
+        throw new Error(`Unsupported image resolution: ${resolution}`);
+      }
+
+      if (typeof ipService.Xx !== 'function') {
+        throw new Error('Flow image download service unavailable');
+      }
+
+      const description =
+        (tile.displayName || tile.Db?.prompt || title || 'image').trim() || 'image';
+
+      await ipService.Xx({
+        mediaId: tile.primaryMediaId,
+        description,
+        resolution,
+      });
+
+      return { key: tile.primaryMediaId };
     }
 
     const currentRes =
       (typeof pageComp.Ova === 'function' ? pageComp.Ova(tile) : tile.Db?.resolution) ?? 1;
-    const isUserUploaded =
-      typeof pageComp.o4 === 'function' ? !!pageComp.o4(tile) : false;
     const isUpsampleSupported =
       !isUserUploaded &&
       (typeof _.c0 === 'function' ? !!_.c0(tile.Db) : true);
@@ -229,11 +275,6 @@
     const description =
       (tile.displayName || tile.Db?.prompt || title || 'video').trim() || 'video';
 
-    // `ipService.Eu` initiates either direct download (720p) or server-side
-    // upscale + automatic download upon completion (1080p / 4K).
-    // Note: Do not await completion of the entire upscale if `Eu` resolves
-    // after initiating the job; `Eu` resolves once the initial RPC or download
-    // action finishes.
     await ipService.Eu({
       mediaId: tile.primaryMediaId,
       description,
@@ -254,9 +295,9 @@
       if (type === 'sync-dom') {
         result = syncDomTileAttributes();
       } else if (type === 'scan') {
-        result = scanVideos();
+        result = scanMedia();
       } else if (type === 'trigger') {
-        result = await triggerVideoDownload(payload);
+        result = await triggerMediaDownload(payload);
       } else {
         throw new Error(`Unknown bridge command: ${type}`);
       }

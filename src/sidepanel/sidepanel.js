@@ -14,10 +14,22 @@ const ITEM_TIMEOUT_MS = 15 * 60 * 1000;
 const RPC_TIMEOUT_MS = 90 * 1000;
 const BETWEEN_ITEMS_MS = 1500;
 
-const RES_HINTS = {
-  '720p': 'Original size. Downloads right away.',
-  '1080p': 'Upscaled by Flow. Takes about 1–2 minutes per video.',
-  '4K': 'Upscaled by Flow. Only available on some plans.',
+const RES_OPTIONS = {
+  VIDEO: [
+    { value: '720p', label: '720p', hint: 'Original size. Downloads right away.' },
+    { value: '1080p', label: '1080p', hint: 'Upscaled by Flow. Takes about 1–2 minutes per video.' },
+    { value: '4K', label: '4K', hint: 'Upscaled by Flow. Only available on some plans.' },
+  ],
+  IMAGE: [
+    { value: '1K', label: '1K', hint: 'Original size. Downloads right away.' },
+    { value: '2K', label: '2K', hint: 'Upscaled by Flow.' },
+    { value: '4K', label: '4K', hint: 'Upscaled by Flow. Only available on some plans.' },
+  ],
+};
+
+const MEDIA_NOUN = {
+  VIDEO: { singular: 'video', plural: 'videos' },
+  IMAGE: { singular: 'image', plural: 'images' },
 };
 
 const ICONS = {
@@ -39,24 +51,32 @@ const state = {
   /** @type {chrome.runtime.Port | null} */
   port: null,
   connectError: '',
-  resolution: '1080p',
-  /** @type {Array<{key: string, title: string, thumb?: string}>} */
+  mediaType: 'VIDEO',
+  resolutionByType: { VIDEO: '1080p', IMAGE: '1K' },
+  /** @type {Array<{key: string, title: string, mediaType?: string, thumb?: string, thumbType?: string}>} */
   catalog: [],
-  /** @type {Map<string, string>} media key -> title */
-  selected: new Map(),
-  /** @type {Array<{key: string, title: string, thumb?: string, status: string, detail: string, startedAt?: number}>} */
-  items: [],
+  /** @type {{VIDEO: Map<string, string>, IMAGE: Map<string, string>}} */
+  selectedByType: { VIDEO: new Map(), IMAGE: new Map() },
+  /** @type {{VIDEO: Array, IMAGE: Array}} */
+  itemsByType: { VIDEO: [], IMAGE: [] },
   running: false,
   stopRequested: false,
   scanning: false,
   message: '',
 };
 
+const activeResolution = () => state.resolutionByType[state.mediaType];
+const activeSelected = () => state.selectedByType[state.mediaType];
+const activeItems = () => state.itemsByType[state.mediaType];
+const activeCatalog = () =>
+  state.catalog.filter((item) => (item.mediaType || 'VIDEO') === state.mediaType);
+
 const $ = (id) => document.getElementById(id);
 const el = {
   empty: $('empty'),
   emptyText: $('empty-text'),
   main: $('main'),
+  mediaType: $('media-type'),
   resolution: $('resolution'),
   resHint: $('res-hint'),
   selectionCount: $('selection-count'),
@@ -123,8 +143,8 @@ function connect(tabId, url) {
   if (!sameProject) {
     // Selection keys are project-scoped media IDs (or fallback grid positions).
     state.catalog = [];
-    state.selected.clear();
-    state.items = [];
+    state.selectedByType = { VIDEO: new Map(), IMAGE: new Map() };
+    state.itemsByType = { VIDEO: [], IMAGE: [] };
     state.message = '';
   }
   state.tabId = tabId;
@@ -159,18 +179,23 @@ function onPortMessage(msg) {
     return;
   }
   switch (msg.type) {
-    case 'toggle':
+    case 'toggle': {
       if (state.running) break;
-      if (msg.checked) state.selected.set(msg.key, msg.title);
-      else state.selected.delete(msg.key);
+      const type = msg.mediaType === 'IMAGE' ? 'IMAGE' : 'VIDEO';
+      const sel = state.selectedByType[type];
+      if (msg.checked) sel.set(msg.key, msg.title);
+      else sel.delete(msg.key);
+      if (type !== state.mediaType) state.mediaType = type;
       render();
       break;
+    }
     case 'flow-error':
       pendingDownload?.reject(new Error(`Flow: ${msg.text}`));
       break;
     case 'layout-changed':
-      if (!state.running && state.selected.size) {
-        state.selected.clear();
+      if (!state.running && (state.selectedByType.VIDEO.size || state.selectedByType.IMAGE.size)) {
+        state.selectedByType.VIDEO.clear();
+        state.selectedByType.IMAGE.clear();
         setMessage('The Flow layout changed, so the selection was cleared. Select again.');
       }
       break;
@@ -180,10 +205,16 @@ function onPortMessage(msg) {
 function pushView() {
   if (!state.port) return;
   const statuses = {};
-  for (const i of state.items) statuses[i.key] = i.status;
+  for (const i of [...state.itemsByType.VIDEO, ...state.itemsByType.IMAGE]) {
+    statuses[i.key] = i.status;
+  }
+  const selected = [
+    ...state.selectedByType.VIDEO.keys(),
+    ...state.selectedByType.IMAGE.keys(),
+  ];
   state.port.postMessage({
     type: 'view',
-    selected: [...state.selected.keys()],
+    selected,
     statuses,
     locked: state.running || state.scanning,
   });
@@ -258,25 +289,30 @@ chrome.downloads.onChanged.addListener((delta) => {
 // -----------------------------------------------------------------------------
 
 async function downloadOne(item) {
+  const res = activeResolution();
   const done = waitForDownload(ITEM_TIMEOUT_MS);
   try {
     const { key } = await rpc('trigger', {
-      item: { key: item.key, title: item.title },
-      resolution: state.resolution,
+      item: {
+        key: item.key,
+        title: item.title,
+        mediaType: item.mediaType || state.mediaType,
+      },
+      resolution: res,
     });
     item.key = key;
   } catch (err) {
     pendingDownload?.reject(err);
     throw err;
   }
-  setCurrentDetail(state.resolution === '720p' ? 'Starting download' : 'Upscaling');
+  setCurrentDetail(res === '720p' || res === '1K' ? 'Starting download' : 'Upscaling');
   const filename = await done;
   return filename.split(/[\\/]/).pop();
 }
 
 async function runQueue() {
   if (state.running) return;
-  const queue = state.items.filter((i) => i.status === 'queued');
+  const queue = activeItems().filter((i) => i.status === 'queued');
   if (!queue.length) return;
   state.running = true;
   state.stopRequested = false;
@@ -286,7 +322,7 @@ async function runQueue() {
     for (const item of queue) {
       if (state.stopRequested) break;
       item.status = 'running';
-      item.detail = 'Opening menu';
+      item.detail = 'Preparing download';
       item.startedAt = Date.now();
       render();
       try {
@@ -321,22 +357,25 @@ async function runQueue() {
 }
 
 function buildQueueFromSelection() {
-  const catalogByKey = new Map(state.catalog.map((v) => [v.key, v]));
-  const catalogOrder = new Map(state.catalog.map((v, idx) => [v.key, idx]));
-  const keys = [...state.selected.keys()];
+  const catalog = activeCatalog();
+  const selected = activeSelected();
+  const catalogByKey = new Map(catalog.map((v) => [v.key, v]));
+  const catalogOrder = new Map(catalog.map((v, idx) => [v.key, idx]));
+  const keys = [...selected.keys()];
   if (keys.every((k) => /^\d+:\d+$/.test(k))) {
     keys.sort(compareKeys);
   } else {
     keys.sort((a, b) => (catalogOrder.get(a) ?? 1e9) - (catalogOrder.get(b) ?? 1e9));
   }
-  const previous = new Map(state.items.map((i) => [i.key, i]));
-  state.items = keys.map((key) => {
+  const previous = new Map(activeItems().map((i) => [i.key, i]));
+  state.itemsByType[state.mediaType] = keys.map((key) => {
     const prev = previous.get(key);
     const meta = catalogByKey.get(key);
     if (prev?.status === 'done') return prev;
     return {
       key,
-      title: state.selected.get(key) || meta?.title || '(untitled)',
+      title: selected.get(key) || meta?.title || '(untitled)',
+      mediaType: meta?.mediaType || state.mediaType,
       thumb: meta?.thumb || prev?.thumb || '',
       thumbType: meta?.thumbType || prev?.thumbType || '',
       status: 'queued',
@@ -351,10 +390,10 @@ function compareKeys(a, b) {
   return at - bt || al - bl;
 }
 
-const count = (status) => state.items.filter((i) => i.status === status).length;
+const count = (status) => activeItems().filter((i) => i.status === status).length;
 
 function setCurrentDetail(detail) {
-  const cur = state.items.find((i) => i.status === 'running');
+  const cur = activeItems().find((i) => i.status === 'running');
   if (!cur) return;
   cur.detail = detail;
   renderList();
@@ -369,28 +408,39 @@ function setMessage(text) {
 // Events
 // -----------------------------------------------------------------------------
 
+el.mediaType.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-value]');
+  if (!btn || state.running) return;
+  state.mediaType = btn.dataset.value;
+  state.message = '';
+  render();
+});
+
 el.resolution.addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-value]');
   if (!btn || state.running) return;
-  state.resolution = btn.dataset.value;
+  state.resolutionByType[state.mediaType] = btn.dataset.value;
   render();
 });
 
 async function refreshCatalog({ silent = false } = {}) {
   if (state.running || state.scanning || !state.port) return false;
   state.scanning = true;
-  if (!silent) setMessage('Scanning the project for videos…');
+  if (!silent) setMessage(`Scanning the project for ${MEDIA_NOUN[state.mediaType].plural}…`);
   else render();
   try {
-    const videos = await rpc('scan');
-    state.catalog = Array.isArray(videos) ? videos : [];
+    const items = await rpc('scan');
+    state.catalog = Array.isArray(items) ? items : [];
     const catalogMap = new Map(state.catalog.map((v) => [v.key, v]));
-    for (const [k] of state.selected) {
-      const match = catalogMap.get(k);
-      if (match) state.selected.set(k, match.title);
+    for (const sel of Object.values(state.selectedByType)) {
+      for (const [k] of sel) {
+        const match = catalogMap.get(k);
+        if (match) sel.set(k, match.title);
+      }
     }
     if (!silent) {
-      setMessage(state.catalog.length ? '' : 'No downloadable videos found in this view.');
+      const countInType = activeCatalog().length;
+      setMessage(countInType ? '' : `No downloadable ${MEDIA_NOUN[state.mediaType].plural} found in this view.`);
     }
     return true;
   } catch (err) {
@@ -410,14 +460,16 @@ el.selectAll.addEventListener('click', async () => {
   if (state.running || state.scanning) return;
   const ok = await refreshCatalog({ silent: false });
   if (!ok) return;
-  state.selected = new Map(state.catalog.map((v) => [v.key, v.title]));
+  state.selectedByType[state.mediaType] = new Map(
+    activeCatalog().map((v) => [v.key, v.title]),
+  );
   render();
 });
 
 el.clear.addEventListener('click', () => {
   if (state.running) return;
-  state.selected.clear();
-  state.items = [];
+  activeSelected().clear();
+  state.itemsByType[state.mediaType] = [];
   setMessage('');
 });
 
@@ -433,7 +485,7 @@ el.stop.addEventListener('click', () => {
 });
 
 el.retry.addEventListener('click', () => {
-  for (const i of state.items) {
+  for (const i of activeItems()) {
     if (i.status === 'failed') {
       i.status = 'queued';
       i.detail = '';
@@ -453,8 +505,9 @@ function formatElapsed(ms) {
 
 function toggleSelection(key, title) {
   if (state.running) return;
-  if (state.selected.has(key)) state.selected.delete(key);
-  else state.selected.set(key, title);
+  const selected = activeSelected();
+  if (selected.has(key)) selected.delete(key);
+  else selected.set(key, title);
   render();
 }
 
@@ -494,9 +547,13 @@ function createThumbEl(src, thumbType) {
 }
 
 function renderList() {
+  const items = activeItems();
+  const selected = activeSelected();
+  const catalog = activeCatalog();
+
   if (state.running) {
     el.list.replaceChildren(
-      ...state.items.map((item) => {
+      ...items.map((item) => {
         const li = document.createElement('li');
         li.className = `list-item ${item.status}`;
 
@@ -533,10 +590,10 @@ function renderList() {
     return;
   }
 
-  const itemByKey = new Map(state.items.map((i) => [i.key, i]));
-  const rows = state.catalog.length
-    ? state.catalog
-    : [...state.selected.entries()].map(([key, title]) => ({ key, title, thumb: '' }));
+  const itemByKey = new Map(items.map((i) => [i.key, i]));
+  const rows = catalog.length
+    ? catalog
+    : [...selected.entries()].map(([key, title]) => ({ key, title, thumb: '' }));
 
   el.list.replaceChildren(
     ...rows.map((entry) => {
@@ -548,7 +605,7 @@ function renderList() {
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.className = 'item-check';
-      cb.checked = state.selected.has(entry.key);
+      cb.checked = selected.has(entry.key);
       cb.ariaLabel = `Select ${entry.title}`;
       cb.addEventListener('click', (e) => e.stopPropagation());
       cb.addEventListener('change', () => toggleSelection(entry.key, entry.title));
@@ -598,38 +655,55 @@ function render() {
     : state.connectError || 'Connecting to the Flow tab…';
 
   const busy = state.running || state.scanning;
+  const noun = MEDIA_NOUN[state.mediaType];
+  const resOpts = RES_OPTIONS[state.mediaType];
+  const currentRes = activeResolution();
 
-  for (const btn of el.resolution.querySelectorAll('button')) {
-    btn.setAttribute('aria-checked', String(btn.dataset.value === state.resolution));
+  for (const btn of el.mediaType.querySelectorAll('button')) {
+    btn.setAttribute('aria-checked', String(btn.dataset.value === state.mediaType));
     btn.disabled = state.running;
   }
-  el.resHint.textContent = RES_HINTS[state.resolution];
 
-  const n = state.selected.size;
-  const catalogTotal = state.catalog.length;
+  const resButtons = [...el.resolution.querySelectorAll('button')];
+  resOpts.forEach((opt, idx) => {
+    const btn = resButtons[idx];
+    if (!btn) return;
+    btn.dataset.value = opt.value;
+    btn.setAttribute('aria-checked', String(opt.value === currentRes));
+    btn.disabled = state.running;
+    const textNode = [...btn.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
+    if (textNode) textNode.textContent = opt.label;
+    else btn.append(opt.label);
+  });
+  el.resHint.textContent = resOpts.find((o) => o.value === currentRes)?.hint || '';
+
+  const selected = activeSelected();
+  const items = activeItems();
+  const n = selected.size;
+  const catalogTotal = activeCatalog().length;
   el.selectionCount.textContent =
     n === 0
       ? catalogTotal
         ? `0 of ${catalogTotal} selected`
-        : 'No videos selected'
+        : `No ${noun.plural} selected`
       : catalogTotal
         ? `${n} of ${catalogTotal} selected`
         : n === 1
-          ? '1 video selected'
-          : `${n} videos selected`;
+          ? `1 ${noun.singular} selected`
+          : `${n} ${noun.plural} selected`;
   el.refresh.disabled = busy;
   el.selectAll.disabled = busy;
   el.selectAll.textContent = state.scanning ? 'Scanning…' : 'Select all';
-  el.clear.disabled = busy || (!n && !state.items.length);
+  el.clear.disabled = busy || (!n && !items.length);
 
   el.start.hidden = state.running;
   el.start.disabled = busy || !n;
-  el.startLabel.textContent = n > 1 ? `Download ${n} videos` : 'Start download';
+  el.startLabel.textContent = n > 1 ? `Download ${n} ${noun.plural}` : 'Start download';
   el.stop.hidden = !state.running;
   el.stop.disabled = state.stopRequested;
   el.retry.hidden = state.running || !count('failed');
 
-  const total = state.items.length;
+  const total = items.length;
   const finished = count('done') + count('failed');
   el.progress.hidden = !state.running;
   el.progressIndicator.style.width = total ? `${(finished / total) * 100}%` : '0';

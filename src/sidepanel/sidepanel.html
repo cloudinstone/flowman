@@ -21,6 +21,16 @@
 
     <main id="main" hidden>
       <section class="card">
+        <h2 class="label-large section-label" id="media-type-label">Media</h2>
+        <div class="segmented" role="radiogroup" aria-labelledby="media-type-label" id="media-type">
+          <button type="button" role="radio" data-value="VIDEO">
+            <svg class="check" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>Videos
+          </button>
+          <button type="button" role="radio" data-value="IMAGE">
+            <svg class="check" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>Images
+          </button>
+        </div>
+
         <h2 class="label-large section-label" id="res-label">Resolution</h2>
         <div class="segmented" role="radiogroup" aria-labelledby="res-label" id="resolution">
           <button type="button" role="radio" data-value="720p">

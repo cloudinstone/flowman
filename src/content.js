@@ -66,11 +66,15 @@
   const tileTitle = (tile) =>
     tile.dataset.fbdTitle || tile.getAttribute('aria-label') || '(untitled)';
 
-  // Failed generations are video tiles too, but have no context menu.
-  const isDownloadableVideo = (tile) =>
-    !!tile.querySelector('flow-video-tile') && !!tile.querySelector('button[aria-haspopup="menu"]');
+  const tileMediaType = (tile) =>
+    tile.dataset.fbdMediaType || (tile.querySelector('flow-image-tile') ? 'IMAGE' : 'VIDEO');
 
-  const videoTiles = () => allTiles().filter(isDownloadableVideo);
+  // Failed generations have no context menu.
+  const isDownloadableTile = (tile) =>
+    !!tile.querySelector('flow-video-tile, flow-image-tile') &&
+    !!tile.querySelector('button[aria-haspopup="menu"]');
+
+  const downloadableTiles = () => allTiles().filter(isDownloadableTile);
 
   // Prefer the stable `data-fbd-media-id` stamped by `page-bridge.js`;
   // fall back to virtual-scroll grid position only if unavailable.
@@ -139,7 +143,12 @@
     await sleep(RENDER_WAIT_MS);
     for (;;) {
       await callBridge('sync-dom').catch(() => {});
-      for (const tile of videoTiles()) found.set(tileKey(tile, scroller), tileTitle(tile));
+      for (const tile of downloadableTiles()) {
+        found.set(tileKey(tile, scroller), {
+          title: tileTitle(tile),
+          mediaType: tileMediaType(tile),
+        });
+      }
       if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2) break;
       const prev = scroller.scrollTop;
       scroller.scrollTop += Math.floor(scroller.clientHeight * 0.7);
@@ -149,18 +158,18 @@
     scroller.scrollTop = original;
     return [...found.entries()]
       .sort(([a], [b]) => compareKeys(a, b))
-      .map(([key, title]) => ({ key, title }));
+      .map(([key, info]) => ({ key, title: info.title, mediaType: info.mediaType }));
   }
 
   async function scrollToKey(scroller, key) {
     if (!isPositionKey(key)) {
       await callBridge('sync-dom').catch(() => {});
-      return videoTiles().find((t) => t.dataset.fbdMediaId === key);
+      return downloadableTiles().find((t) => t.dataset.fbdMediaId === key);
     }
     const [top] = parseKey(key);
     scroller.scrollTop = Math.max(0, top - 120);
     await sleep(RENDER_WAIT_MS);
-    return videoTiles().find((t) => keysMatch(tileKey(t, scroller), key));
+    return downloadableTiles().find((t) => keysMatch(tileKey(t, scroller), key));
   }
 
   async function locateTileFallback(item) {
@@ -171,10 +180,10 @@
 
     const matches = (await scanAllVideos()).filter((v) => v.title === item.title);
     if (matches.length !== 1) {
-      throw new Error('The grid layout changed and this video could not be identified');
+      throw new Error('The grid layout changed and this item could not be identified');
     }
     const tile = await scrollToKey(scroller, matches[0].key);
-    if (!tile) throw new Error('Video tile not found');
+    if (!tile) throw new Error('Media tile not found');
     return { tile, key: matches[0].key };
   }
 
@@ -186,6 +195,7 @@
       return await callBridge('trigger', {
         key: item.key,
         title: item.title,
+        mediaType: item.mediaType,
         resolution,
       });
     } catch (bridgeErr) {
@@ -302,7 +312,7 @@
       // Clean up any legacy checkbox from earlier versions.
       tile.querySelector(':scope > .fbd-check')?.remove();
 
-      if (!port || !scroller || !isDownloadableVideo(tile)) {
+      if (!port || !scroller || !isDownloadableTile(tile)) {
         delete tile.dataset.fbdSelected;
         delete tile.dataset.fbdStatus;
         continue;
@@ -325,7 +335,7 @@
       (e) => {
         if (!port || view.locked || !e.altKey) return;
         const tile = e.target?.closest?.('flow-grid-tile-container');
-        if (!tile || !isDownloadableVideo(tile)) return;
+        if (!tile || !isDownloadableTile(tile)) return;
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
@@ -339,6 +349,7 @@
           type: 'toggle',
           key,
           title: tileTitle(tile),
+          mediaType: tileMediaType(tile),
           checked: !view.selected.has(key),
         });
       },
